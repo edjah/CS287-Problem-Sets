@@ -25,8 +25,8 @@ class NaiveBayes:
 
         # obtaining feature vector
         p, q = p.float(), q.float()
-        self.r = (p / torch.norm(p, 1)).log() - (q / torch.norm(q, 1)).log()
-        self.b = (pos_counts.float() / neg_counts).log()
+        self.r = (p / p.sum()).log() - (q / q.sum()).log()
+        self.b = pos_counts.float().log() - neg_counts.float().log()
 
     def __call__(self, text):
         results = torch.zeros(text.shape['batch'])

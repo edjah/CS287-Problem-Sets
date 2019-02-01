@@ -54,7 +54,8 @@ url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
 TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
 
 print("Word embeddings size ", TEXT.vocab.vectors.size())
-print("Word embedding of 'follows', first 10 dim ", TEXT.vocab.vectors[TEXT.vocab.stoi['follows']][:10])
+print("Word embedding of 'follows', first 10 dim ",
+      TEXT.vocab.vectors[TEXT.vocab.stoi['follows']][:10])
 
 
 def test_code(model):
@@ -74,15 +75,18 @@ def test_code(model):
         for i, u in enumerate(upload):
             f.write(str(i) + "," + str(u) + "\n")
 
-def validate(model):
 
+def validate(model):
     total_correct = 0
     total = 0
     for batch in val_iter:
-      batch_result = model(batch.text) > 0.5
-      total_correct += (batch.label.values.cpu() == batch_result.long()).sum()
-      total += len(batch)
+        batch_result = model(batch.text) > 0.5
+        total_correct += (batch.label.values.cpu() == batch_result.long()).sum()
+        total += len(batch)
 
     print(total_correct, total, total_correct.float() / total)
 
-validate(NaiveBayes(1))
+
+if __name__ == '__main__':
+    nb_model = NaiveBayes(1, train_iter, len(TEXT.vocab))
+    validate(nb_model)

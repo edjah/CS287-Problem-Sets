@@ -7,6 +7,7 @@ from torchtext.vocab import Vectors, GloVe
 from namedtensor import ntorch, NamedTensor
 from namedtensor.text import NamedField
 
+from naive_bayes import NaiveBayes
 
 # Our input $x$
 TEXT = NamedField(names=('seqlen',))
@@ -72,3 +73,16 @@ def test_code(model):
         f.write("Id,Category\n")
         for i, u in enumerate(upload):
             f.write(str(i) + "," + str(u) + "\n")
+
+def validate(model):
+
+    total_correct = 0
+    total = 0
+    for batch in val_iter:
+      batch_result = model(batch.text) > 0.5
+      total_correct += (batch.label.values.cpu() == batch_result.long()).sum()
+      total += len(batch)
+
+    print(total_correct, total, total_correct.float() / total)
+
+validate(NaiveBayes(1))

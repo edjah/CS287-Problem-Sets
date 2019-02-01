@@ -7,7 +7,16 @@ from torchtext.vocab import Vectors, GloVe
 from namedtensor import ntorch, NamedTensor
 from namedtensor.text import NamedField
 
-from naive_bayes import NaiveBayes
+from models.naive_bayes import NaiveBayes
+from models.logistic_regression import LogisticRegression
+
+from utils import TimingContext
+
+
+# setting the default tensor type to `torch.cuda.FloatTensor`
+# change this to `torch.FloatTensor` if you don't have a gpu
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
 
 # Our input $x$
 TEXT = NamedField(names=('seqlen',))
@@ -26,7 +35,7 @@ TEXT.build_vocab(train)
 LABEL.build_vocab(train)
 
 train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
-    (train, val, test), batch_size=10, device=torch.device("cuda"))
+    (train, val, test), batch_size=10)
 
 
 # Build the vocabulary with word embeddings
@@ -57,7 +66,7 @@ def test_model(model, data_set=val_iter, description=None):
     total = 0
     for batch in data_set:
         batch_result = model(batch.text) > 0.5
-        total_correct += (batch.label.values.cpu() == batch_result.long()).sum()
+        total_correct += (batch.label.values == batch_result.long()).sum()
         total += len(batch)
 
     if description:
@@ -68,7 +77,26 @@ def test_model(model, data_set=val_iter, description=None):
 
 
 if __name__ == '__main__':
-    nb_model = NaiveBayes(1, train_iter, len(TEXT.vocab))
 
+    # naive bayes
+    with TimingContext('Training Naive Bayes', suffix='\n'):
+        nb_model = NaiveBayes(
+            train_iter=train_iter,
+            vocab_len=len(TEXT.vocab),
+            alpha=1
+        )
     test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
     test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
+
+    # logistic regression
+    with TimingContext('Training Logistic Regression', suffix='\n'):
+        lr_model = LogisticRegression(
+            train_iter=train_iter,
+            vocab_len=len(TEXT.vocab),
+            num_iter=500,
+            learning_rate=0.05,
+            reg_param=0.001,
+            do_set_of_words=False
+        )
+    test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
+    test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')

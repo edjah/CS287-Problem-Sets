@@ -2,11 +2,11 @@ import torch
 
 
 class NaiveBayes:
-    def __init__(self, alpha, train_iter, vocab_len):
+    def __init__(self, train_iter, vocab_len, alpha=1):
         self.vocab_len = vocab_len
 
-        p = alpha * torch.ones(self.vocab_len, device='cuda')
-        q = alpha * torch.ones(self.vocab_len, device='cuda')
+        p = alpha * torch.ones(self.vocab_len)
+        q = alpha * torch.ones(self.vocab_len)
 
         pos_counts = 0
         neg_counts = 0

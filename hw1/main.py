@@ -1,50 +1,12 @@
-import torch
-# Text text processing library and methods for pretrained word embeddings
-import torchtext
-from torchtext.vocab import Vectors, GloVe
-
-# Named Tensor wrappers
-from namedtensor import ntorch, NamedTensor
-from namedtensor.text import NamedField
-
+from data_setup import torchtext, test, train_iter, val_iter
 from models.naive_bayes import NaiveBayes
 from models.logistic_regression import LogisticRegression
-
+from models.cbow_nn import CbowNN
 from utils import TimingContext
 
 
-# setting the default tensor type to `torch.cuda.FloatTensor`
-# change this to `torch.FloatTensor` if you don't have a gpu
-torch.set_default_tensor_type(torch.cuda.FloatTensor)
-
-
-# Our input $x$
-TEXT = NamedField(names=('seqlen',))
-
-
-# Our labels $y$
-LABEL = NamedField(sequential=False, names=(), unk_token=None)
-
-
-train, val, test = torchtext.datasets.SST.splits(
-    TEXT, LABEL,
-    filter_pred=lambda ex: ex.label != 'neutral')
-
-
-TEXT.build_vocab(train)
-LABEL.build_vocab(train)
-
-train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
-    (train, val, test), batch_size=10)
-
-
-# Build the vocabulary with word embeddings
-url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
-TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
-
-
 def test_code(model):
-    "All models should be able to be run with following command."
+    """All models should be able to be run with following command."""
     upload = []
     # Update: for kaggle the bucket iterator needs to have batch_size 10
     test_iter = torchtext.data.BucketIterator(test, train=False, batch_size=10)
@@ -81,9 +43,8 @@ if __name__ == '__main__':
     # naive bayes
     with TimingContext('Training Naive Bayes', suffix='\n'):
         nb_model = NaiveBayes(
-            train_iter=train_iter,
-            vocab_len=len(TEXT.vocab),
-            alpha=1
+            alpha=1,
+            do_set_of_words=False
         )
     test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
     test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
@@ -91,12 +52,22 @@ if __name__ == '__main__':
     # logistic regression
     with TimingContext('Training Logistic Regression', suffix='\n'):
         lr_model = LogisticRegression(
-            train_iter=train_iter,
-            vocab_len=len(TEXT.vocab),
             num_iter=500,
-            learning_rate=0.05,
+            learning_rate=0.2,
             reg_param=0.001,
-            do_set_of_words=False
+            do_set_of_words=True
         )
     test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
     test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')
+
+    # CBOW neural net regression
+    with TimingContext('Training CBOW Neural Net', suffix='\n'):
+        lr_model = CbowNN(
+            num_iter=100,
+            learning_rate=0.001,
+            second_layer_size=10,
+            batch_size=1000,
+            log_freq=50
+        )
+    test_model(lr_model, train_iter, description='CBOW NN: Training Set')
+    test_model(lr_model, val_iter, description='CBOW NN: Validation Set')

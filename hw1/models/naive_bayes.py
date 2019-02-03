@@ -13,7 +13,7 @@ class NaiveBayes:
         neg_counts = 0
 
         for batch in train_iter:
-            sentences = batch.text.transpose('batch', 'seqlen').values
+            sentences = batch.text.transpose('batch', 'seqlen').values.clone()
             labels = batch.label.values
             pos_counts += labels.sum()
             neg_counts += len(labels) - labels.sum()
@@ -31,7 +31,7 @@ class NaiveBayes:
 
     def __call__(self, text):
         results = torch.zeros(text.shape['batch'])
-        sentences = text.transpose('batch', 'seqlen').values
+        sentences = text.transpose('batch', 'seqlen').values.clone()
         for i, sent in enumerate(sentences):
             words = torch.bincount(sent, minlength=self.vocab_len).float()
             if self.do_set_of_words:

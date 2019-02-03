@@ -15,7 +15,7 @@ class LogisticRegression:
         y_lst = []
 
         for batch in train_iter:
-            sentences = batch.text.transpose('batch', 'seqlen').values
+            sentences = batch.text.transpose('batch', 'seqlen').values.clone()
             y_lst.append(batch.label.values.float())
             for sent in sentences:
                 x_lst.append(self.transform_x(sent))
@@ -45,7 +45,7 @@ class LogisticRegression:
 
     def __call__(self, text):
         results = torch.zeros(text.shape['batch'])
-        sentences = text.transpose('batch', 'seqlen').values
+        sentences = text.transpose('batch', 'seqlen').values.clone()
         for i, sent in enumerate(sentences):
             named_x = self.transform_x(sent)
             prob = self.weight.dot('vocab', named_x).sigmoid()

@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # logistic regression
     with TimingContext('Training Logistic Regression', suffix='\n'):
         lr_model = LogisticRegression(
-            num_iter=500,
+            num_iter=200,
             learning_rate=0.2,
             reg_param=0.001,
             do_set_of_words=True

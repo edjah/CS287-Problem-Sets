@@ -17,7 +17,7 @@ class CbowNN:
         x_lst = []
         y_lst = []
         for batch in train_iter:
-            sentences = batch.text.transpose('batch', 'seqlen').values
+            sentences = batch.text.transpose('batch', 'seqlen').values.clone()
             labels = batch.label.values
             xbatch = ntorch.tensor(TEXT.vocab.vectors[sentences].sum(dim=1),
                                    names=('sentence', 'embed'))
@@ -62,7 +62,7 @@ class CbowNN:
                 print(f'Accuracy at epoch {i}: {accuracy:.2f}%')
 
     def __call__(self, text):
-        sentences = text.transpose('batch', 'seqlen').values
+        sentences = text.transpose('batch', 'seqlen').values.clone()
         xbatch = TEXT.vocab.vectors[sentences].sum(dim=1)
         y = self.model(xbatch)
         return y.squeeze(1)

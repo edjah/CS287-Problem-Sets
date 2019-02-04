@@ -1,7 +1,9 @@
-from data_setup import torchtext, test, train_iter, val_iter
+from data_setup import torch, torchtext, test, train_iter, val_iter
 from models.naive_bayes import NaiveBayes
 from models.logistic_regression import LogisticRegression
 from models.cbow_nn import CbowNN
+from models.cnn import CNN
+from models.rnn import RNN
 from utils import TimingContext
 
 
@@ -27,7 +29,7 @@ def test_model(model, data_set=val_iter, description=None):
     total_correct = 0
     total = 0
     for batch in data_set:
-        batch_result = model(batch.text) > 0.5
+        batch_result = model(batch.text).flatten() > 0.5
         total_correct += (batch.label.values == batch_result.long()).sum()
         total += len(batch)
 
@@ -39,7 +41,6 @@ def test_model(model, data_set=val_iter, description=None):
 
 
 if __name__ == '__main__':
-
     # naive bayes
     with TimingContext('Training Naive Bayes', suffix='\n'):
         nb_model = NaiveBayes(
@@ -62,12 +63,44 @@ if __name__ == '__main__':
 
     # CBOW neural net regression
     with TimingContext('Training CBOW Neural Net', suffix='\n'):
-        lr_model = CbowNN(
+        cbow_nn = CbowNN(
             num_iter=100,
             learning_rate=0.001,
             second_layer_size=10,
             batch_size=1000,
             log_freq=50
         )
-    test_model(lr_model, train_iter, description='CBOW NN: Training Set')
-    test_model(lr_model, val_iter, description='CBOW NN: Validation Set')
+    test_model(cbow_nn, train_iter, description='CBOW NN: Training Set')
+    test_model(cbow_nn, val_iter, description='CBOW NN: Validation Set')
+
+    # CNN
+    with TimingContext('Training CNN', suffix='\n'):
+        cnn = CNN(
+            num_filters=20,
+            kernel_sizes=(3, 6, 9),
+            second_layer_size=20,
+            dropout_rate=0.8,
+            num_iter=200,
+            learning_rate=0.001,
+            batch_size=500,
+            log_freq=50
+        )
+
+    test_model(cnn, train_iter, description='CNN: Training Set')
+    test_model(cnn, val_iter, description='CNN: Validation Set')
+
+    # RNN
+    with TimingContext('Training RNN', suffix='\n'):
+        rnn = RNN(
+            hidden_size=50,
+            model_class=torch.nn.RNN,
+            inp_size=20,
+            num_layers=2,
+            num_iter=1000,
+            learning_rate=0.001,
+            batch_size=2048,
+            log_freq=50
+        )
+
+    test_model(rnn, train_iter, description='RNN: Training Set')
+    test_model(rnn, val_iter, description='RNN: Validation Set')

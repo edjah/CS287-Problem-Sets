@@ -10,8 +10,8 @@ from namedtensor.text import NamedField
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
 # change this to `torch.FloatTensor` if you don't have a gpu
-# torch.set_default_tensor_type(torch.cuda.FloatTensor)
-torch.set_default_tensor_type(torch.FloatTensor)
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
+# torch.set_default_tensor_type(torch.FloatTensor)
 
 
 # Our input $x$

@@ -6,6 +6,9 @@ from torchtext.vocab import Vectors, GloVe
 # Named Tensor wrappers
 from namedtensor import ntorch, NamedTensor
 from namedtensor.text import NamedField
+from pytorch_pretrained_bert import BertTokenizer, BertModel
+
+from collections import defaultdict
 
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
@@ -24,6 +27,15 @@ train, val, test = torchtext.datasets.SST.splits(
     TEXT, LABEL,
     filter_pred=lambda ex: ex.label != 'neutral')
 
+
+for ds in (train, val, test):
+    for example in ds:
+        new_words = []
+        for word in example.text:
+            new_words.append(word.lower())
+        example.text = new_words
+
+
 TEXT.build_vocab(train)
 LABEL.build_vocab(train)
 
@@ -34,3 +46,10 @@ train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
 # Build the vocabulary with word embeddings
 url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
 TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
+
+
+bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+bert_tokenizer.vocab = defaultdict(lambda: 100, bert_tokenizer.vocab)
+
+bert_model = BertModel.from_pretrained('bert-base-uncased')
+bert_model.eval()

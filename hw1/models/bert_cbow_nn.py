@@ -1,13 +1,14 @@
-from data_setup import torch, ntorch, train_iter, val_iter, TEXT
+from data_setup import torch, ntorch, train, val, TEXT, bert_tokenizer, bert_model
 from utils import chunks
+from tqdm import tqdm
 
 
-class CbowNN:
+class BertCbowNN:
     def __init__(self, num_iter=300, learning_rate=0.01, second_layer_size=50,
                  batch_size=100, log_freq=10, dropout_rate=0.1):
 
-        self.vocab_len = len(TEXT.vocab)
-        # self.vocab_len = TEXT.vocab.vectors.shape[1]
+        # self.vocab_len = len(TEXT.vocab)
+        self.vocab_len = 768
 
         # constructing the neural network model
         self.model = torch.nn.Sequential(
@@ -24,8 +25,8 @@ class CbowNN:
         )
 
         # setting up data
-        xtrain, ytrain = self.preprocess(train_iter)
-        xval, yval = self.preprocess(val_iter)
+        xtrain, ytrain = self.preprocess(train)
+        xval, yval = self.preprocess(val)
 
         # training
         opt = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
@@ -44,7 +45,7 @@ class CbowNN:
                                                drop_last=False)
             try:
                 for idx in s2:
-                    xbatch = xtrain.values[idx]
+                    xbatch = xtrain[idx]
                     labels_batch = ytrain[idx]
 
                     opt.zero_grad()
@@ -93,7 +94,7 @@ class CbowNN:
         loss = 0
         num_correct = 0
         for batch in chunks(torch.arange(len(x)), 100):
-            probs = self.model(x.values[batch]).flatten()
+            probs = self.model(x[batch]).flatten()
             num_correct += int(((probs > 0.5).byte() == y[batch].byte()).sum())
             loss += loss_fn(probs, y[batch].float()) * len(batch)
 
@@ -102,23 +103,33 @@ class CbowNN:
     def preprocess(self, dataset):
         x_lst = []
         y_lst = []
-        for batch in dataset:
-            sentences = batch.text.transpose('batch', 'seqlen').values.clone()
-            labels = batch.label.values
+        for example in tqdm(dataset, total=len(dataset)):
             # xbatch = ntorch.tensor(TEXT.vocab.vectors[sentences].sum(dim=1),
             #                        names=('sentence', 'embed'))
-            xbatch = []
-            for sent in sentences:
-                words = self.transform(sent)
-                xbatch.append(words)
-            xbatch = ntorch.tensor(torch.stack(xbatch), names=('sentence', 'embed'))
-            x_lst.append(xbatch)
-            y_lst.append(labels)
+            x_lst.append(self.transform(example.text))
+            y_lst.append(int(example.label == 'positive'))
 
-        x = ntorch.cat(x_lst, dim='sentence')
-        y = torch.cat(y_lst)
+        x = torch.stack(x_lst)
+        y = torch.tensor(y_lst)
         return x, y
 
     def transform(self, sent):
+        sent = list(sent)
+        if not isinstance(sent[0], str):
+            # removing padding
+            while sent[-1] <= 1:
+                sent.pop()
+
+            # converting back to text
+            sent = [TEXT.vocab.itos[i] for i in sent]
+
+        with torch.no_grad():
+            indexed_tokens = bert_tokenizer.convert_tokens_to_ids(sent)
+            tokens_tensor = torch.tensor([indexed_tokens])
+            segments_tensor = torch.zeros(tokens_tensor.shape).long()
+            _, embedding = bert_model(tokens_tensor, segments_tensor)
+            return embedding.squeeze(0)
+
+        # sent = torch.tensor([TEXT.vocab.stoi[s] for s in sent])
         # return TEXT.vocab.vectors[sent].sum(dim=0)
-        return torch.bincount(sent, minlength=self.vocab_len).float()
+        # return torch.bincount(sent, minlength=self.vocab_len).float()

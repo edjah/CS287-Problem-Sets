@@ -37,7 +37,7 @@ TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
 
 # all functions to generate data for training/testing
 
-def trainingdata_lr():
+def trainingdata_lr(do_set_of_words=False):
     # setting up
     x_lst = []
     y_lst = []
@@ -46,7 +46,7 @@ def trainingdata_lr():
         sentences = batch.text.transpose('batch', 'seqlen').values.clone()
         y_lst.append(batch.label.values.float())
         for sent in sentences:
-            x_lst.append(transform_x_lr(sent))
+            x_lst.append(transform_x_lr(sent, do_set_of_words=do_set_of_words))
 
     xtrain = ntorch.stack(x_lst, 'sentence')
     # ytrain = ntorch.tensor(torch.cat(y_lst), names=('sentence',))

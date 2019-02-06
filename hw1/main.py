@@ -39,8 +39,78 @@ def test_model(model, data_set=val_iter, description=None):
     print(f'Num correct: {total_correct}\nTotal: {total}')
     print(f'Accuracy: {100.0 * total_correct.float() / total:.2f}%\n')
 
+# Works for all NN-based models (including LR)
+def train_model(model, xtrain, ytrain,
+                num_iter=300, learning_rate=0.001, batch_size=100, log_freq=10):
+
+    # training
+    model.train()
+    opt = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    loss_fn = torch.nn.BCELoss()
+
+    for i in range(num_iter):
+        total_loss = 0
+        num_correct = 0
+
+        s1 = torch.utils.data.RandomSampler(torch.arange(len(xtrain)))
+        s2 = torch.utils.data.BatchSampler(s1, batch_size=batch_size,
+                                           drop_last=False)
+        try:
+            for idx in s2:
+                xbatch = xtrain.values[idx]
+                labels_batch = ytrain[idx]
+
+                # print(xbatch.shape)
+
+                opt.zero_grad()
+                probs = model.forward(xbatch)
+                probs = probs.flatten()
+                preds = probs.detach() > 0.5
+                num_correct += int((preds == labels_batch.byte()).sum())
+
+                loss = loss_fn(probs, labels_batch.float())
+                loss.backward()
+                total_loss += loss.detach()
+                opt.step()
+        except KeyboardInterrupt:
+            print(f'\nStopped training after {i} epochs...')
+            break
+
+        if i == 0 or i == num_iter - 1 or (i + 1) % log_freq == 0:
+            accuracy = 100.0 * num_correct / len(xtrain)
+            print(f'Loss at epoch {i}: {total_loss}')
+            print(f'Accuracy at epoch {i}: {accuracy:.2f}%')
+
+    model.eval()
+
 
 if __name__ == '__main__':
+
+    # current main: runs using modified (refactored) testing function
+
+    lr = LRNN()
+    # NOTE: if you want set of words for LR, change it in this command AND the data generator
+    x, y = trainingdata_lr()
+    train_model(lr, x, y, num_iter=100)
+    test_model(lr, train_iter, description="LR training set")
+    test_model(lr, val_iter, description="LR validation set")
+
+    cb = CbowNN()
+    # NOTE: if you want set of words for LR, change it in this command AND the data generator
+    x, y = trainingdata_cbownn()
+    train_model(cb, x, y, num_iter=100)
+    test_model(cb, train_iter, description="CbowNN training set")
+    test_model(cb, val_iter, description="CbowNN validation set")
+
+    cnn = CNN()
+    # NOTE: if you want set of words for LR, change it in this command AND the data generator
+    x, y = trainingdata_cnn()
+    train_model(cnn, x, y, num_iter=100)
+    test_model(cnn, train_iter, description="CNN training set")
+    test_model(cnn, val_iter, description="CNN validation set")
+
+else:
+
     # naive bayes
     with TimingContext('Training Naive Bayes', suffix='\n'):
         nb_model = NaiveBayes(

@@ -1,4 +1,4 @@
-from data_setup import torch, train_iter, TEXT, bigram_map, make_bigrams
+from data_setup import torch, train_iter, val_iter, TEXT, bigram_map, make_bigrams
 
 
 class NaiveBayes:
@@ -17,16 +17,17 @@ class NaiveBayes:
         pos_counts = 0
         neg_counts = 0
 
-        for batch in train_iter:
-            sentences = batch.text.transpose('batch', 'seqlen').values.clone()
-            labels = batch.label.values
-            pos_counts += labels.sum()
-            neg_counts += len(labels) - labels.sum()
+        for dataset in (train_iter, val_iter):
+            for batch in dataset:
+                sentences = batch.text.transpose('batch', 'seqlen').values.clone()
+                labels = batch.label.values
+                pos_counts += labels.sum()
+                neg_counts += len(labels) - labels.sum()
 
-            for sent, label in zip(sentences, labels):
-                words = self.transform(sent)
-                p += words * float(label == 1)
-                q += words * float(label == 0)
+                for sent, label in zip(sentences, labels):
+                    words = self.transform(sent)
+                    p += words * float(label == 1)
+                    q += words * float(label == 0)
 
         # computing the weight vector feature vector
         self.r = (p / p.sum()).log() - (q / q.sum()).log()

@@ -34,12 +34,13 @@ class RNN(torch.nn.Module):
         hidden = torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)
         return self.out(self.dropout(hidden).squeeze(0))
 
-    def get_data(self, dataset):
+    def get_data(self, datasets):
         x_lst = []
         y_lst = []
-        for batch in dataset:
-            x_lst.append(self.transform(batch.text))
-            y_lst.append(batch.label.values)
+        for dataset in datasets:
+            for batch in dataset:
+                x_lst.append(self.transform(batch.text))
+                y_lst.append(batch.label.values)
 
         X = torch.cat(x_lst)
         Y = torch.cat(y_lst)

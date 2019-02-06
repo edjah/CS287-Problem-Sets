@@ -26,12 +26,14 @@ class CbowNN(torch.nn.Module):
     def forward(self, text):
         return self.model(text)
 
-    def get_data(self, dataset):
+    def get_data(self, datasets):
         x_lst = []
         y_lst = []
-        for batch in dataset:
-            x_lst.append(self.transform(batch.text))
-            y_lst.append(batch.label.values)
+
+        for dataset in datasets:
+            for batch in dataset:
+                x_lst.append(self.transform(batch.text))
+                y_lst.append(batch.label.values)
 
         X = torch.cat(x_lst)
         Y = torch.cat(y_lst)

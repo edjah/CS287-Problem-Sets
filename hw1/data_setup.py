@@ -12,8 +12,8 @@ from collections import defaultdict
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
 # change this to `torch.FloatTensor` if you don't have a gpu
-# torch.set_default_tensor_type(torch.FloatTensor)
-torch.set_default_tensor_type(torch.cuda.FloatTensor)
+torch.set_default_tensor_type(torch.FloatTensor)
+# torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 # Our input $x$
@@ -26,8 +26,12 @@ train, val, test = torchtext.datasets.SST.splits(
     TEXT, LABEL,
     filter_pred=lambda ex: ex.label != 'neutral')
 
-TEXT.build_vocab(train)
-LABEL.build_vocab(train)
+for dataset in (train, val, test):
+    for example in dataset:
+        example.text = [word.lower() for word in example.text]
+
+TEXT.build_vocab(train, val, test)
+LABEL.build_vocab(train, val, test)
 
 train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
     (train, val, test), batch_size=10)

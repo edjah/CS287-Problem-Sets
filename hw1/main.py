@@ -7,7 +7,7 @@ from models.rnn import RNN
 from utils import TimingContext, chunks
 
 
-def test_code(model):
+def generate_predictions(model):
     """All models should be able to be run with following command."""
     upload = []
     # Update: for kaggle the bucket iterator needs to have batch_size 10
@@ -16,7 +16,8 @@ def test_code(model):
         # Your prediction data here (don't cheat!)
         probs = model(batch.text)
         # here we assume that the name for dimension classes is `classes`
-        _, argmax = probs.max('classes')
+        # _, argmax = probs.max('classes')
+        argmax = (probs.flatten() > 0.5).long()
         upload += argmax.tolist()
 
     with open("predictions.txt", "w") as f:
@@ -55,14 +56,16 @@ def evaluate(model, x, y):
 
 # Works for all NN-based models (including LR)
 def train_model(model, reg_param=0, num_iter=300, learning_rate=0.001,
-                batch_size=100, log_freq=10):
+                weight_decay=0, batch_size=100, log_freq=10):
     # getting properly formatted training/validation data
-    xtrain, ytrain = model.get_data(train_iter)
-    xval, yval = model.get_data(val_iter)
+    xtrain, ytrain = model.get_data((train_iter, val_iter))
+    xval, yval = model.get_data((test_iter,))
 
     # training
     model.train()
-    opt = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    opt = torch.optim.Adam(
+        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
     loss_fn = torch.nn.BCELoss()
 
     best_params = {k: p.detach().clone() for k, p in model.named_parameters()}
@@ -114,52 +117,56 @@ def train_model(model, reg_param=0, num_iter=300, learning_rate=0.001,
 
 
 if __name__ == '__main__':
-    # # naive bayes
-    # with TimingContext('Training Naive Bayes', suffix='\n'):
-    #     nb_model = NaiveBayes(
-    #         alpha=1.4,
-    #         do_set_of_words=False,
-    #         do_bigrams=False
-    #     )
-    # test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
-    # test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
-    # test_model(nb_model, test_iter, description='Naive Bayes: Test Set')
+    # naive bayes
+    with TimingContext('Training Naive Bayes', suffix='\n'):
+        nb_model = NaiveBayes(
+            alpha=1,
+            do_set_of_words=False,
+            do_bigrams=False
+        )
+    test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
+    test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
+    test_model(nb_model, test_iter, description='Naive Bayes: Test Set')
 
-    # # logistic regression
-    # with TimingContext('Training Logistic Regression', suffix='\n'):
-    #     lr_model = LogisticRegression(do_set_of_words=True, do_bigrams=False)
-    #     train_model(
-    #         lr_model, reg_param=0.001, num_iter=200, learning_rate=0.01,
-    #         log_freq=10, batch_size=1024
-    #     )
-    # test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
-    # test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')
-    # test_model(lr_model, test_iter, description='Logistic Reg: Test Set')
+    # logistic regression
+    with TimingContext('Training Logistic Regression', suffix='\n'):
+        lr_model = LogisticRegression(
+            do_set_of_words=True, do_bigrams=False, do_embeddings=True
+        )
+        train_model(
+            lr_model, reg_param=0.001, num_iter=200, learning_rate=0.01,
+            log_freq=10, batch_size=1024
+        )
+    test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
+    test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')
+    test_model(lr_model, test_iter, description='Logistic Reg: Test Set')
 
-    # # CBOW neural net regression
-    # with TimingContext('Training CBOW Neural Net', suffix='\n'):
-    #     cbow_nn = CbowNN(do_embedding=True, second_layer_size=20)
-    #     train_model(
-    #         cbow_nn, num_iter=1000, learning_rate=0.001, batch_size=1000,
-    #         log_freq=50
-    #     )
-    # test_model(cbow_nn, train_iter, description='CBOW NN: Training Set')
-    # test_model(cbow_nn, val_iter, description='CBOW NN: Validation Set')
-    # test_model(cbow_nn, test_iter, description='CBOW NN: Test Set')
+    # CBOW neural net regression
+    with TimingContext('Training CBOW Neural Net', suffix='\n'):
+        cbow_nn = CbowNN(do_embedding=True, second_layer_size=20)
+        train_model(
+            cbow_nn, num_iter=1000, learning_rate=0.001, batch_size=1000,
+            log_freq=50
+        )
+    test_model(cbow_nn, train_iter, description='CBOW NN: Training Set')
+    test_model(cbow_nn, val_iter, description='CBOW NN: Validation Set')
+    test_model(cbow_nn, test_iter, description='CBOW NN: Test Set')
 
-    # # CNN
-    # with TimingContext('Training CNN', suffix='\n'):
-    #     cnn = CNN(
-    #         num_filters=20, kernel_sizes=(3, 6, 9), second_layer_size=20,
-    #         dropout_rate=0.8
-    #     )
-    #     train_model(
-    #         cnn, num_iter=200, learning_rate=0.001, batch_size=500, log_freq=50
-    #     )
+    # CNN
+    with TimingContext('Training CNN', suffix='\n'):
+        cnn = CNN(
+            num_filters=300, kernel_sizes=(3, 4, 5), second_layer_size=100,
+            dropout_rate=0.5
+        )
+        train_model(
+            cnn, num_iter=200, learning_rate=0.001, batch_size=256, log_freq=1,
+            weight_decay=0
+        )
 
-    # test_model(cnn, train_iter, description='CNN: Training Set')
-    # test_model(cnn, val_iter, description='CNN: Validation Set')
-    # test_model(cnn, test_iter, description='CNN: Test Set')
+    test_model(cnn, train_iter, description='CNN: Training Set')
+    test_model(cnn, val_iter, description='CNN: Validation Set')
+    test_model(cnn, test_iter, description='CNN: Test Set')
+    # generate_predictions(cnn)
 
     # RNN
     with TimingContext('Training RNN', suffix='\n'):

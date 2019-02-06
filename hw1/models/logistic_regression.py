@@ -7,7 +7,7 @@ class LogisticRegression(torch.nn.Module):
 
         # constructing the neural network model
         self.model = torch.nn.Sequential(
-            torch.nn.Linear(vocab_len + 1, 1),
+            torch.nn.Linear(vocab_len, 1),
             torch.nn.Sigmoid()
         )
 

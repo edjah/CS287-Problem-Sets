@@ -95,8 +95,8 @@ def trainingdata_cnn():
 
 def transform_x_lr(sent, do_set_of_words=False, vocab_len=16284):
     # regular bag of words / set of words
-    words = torch.bincount(sent, minlength=vocab_len + 1)
-    words[vocab_len] = 1
+    words = torch.bincount(sent, minlength=vocab_len)
+    # words[vocab_len] = 1
     if do_set_of_words:
         words = (words > 0)
     return ntorch.tensor(words.float(), names=('vocab',))

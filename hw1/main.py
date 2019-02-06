@@ -41,11 +41,12 @@ def test_model(model, data_set=val_iter, description=None):
 
 # Works for all NN-based models (including LR)
 def train_model(model, xtrain, ytrain,
-                num_iter=300, learning_rate=0.001, batch_size=100, log_freq=10):
+                num_iter=300, learning_rate=0.001, batch_size=100, log_freq=10,
+                weight_decay=0):
 
     # training
     model.train()
-    opt = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    opt = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     loss_fn = torch.nn.BCELoss()
 
     for i in range(num_iter):

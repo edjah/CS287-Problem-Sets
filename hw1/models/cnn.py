@@ -35,13 +35,11 @@ class CNN(torch.nn.Module):
         )
 
     def __call__(self, text):
-        # print(batch.shape)
         sentences = text.transpose('batch', 'seqlen').values.clone()
         pad_amt = (0, self.max_words - sentences.shape[1])
         sent_padded = torch.nn.functional.pad(sentences, pad_amt, value=1)
         batch_embeds = TEXT.vocab.vectors[sent_padded]
 
-        # print("Batch embed dims: ", batch_embeds.shape)
         x = batch_embeds.transpose(1, 2)
 
         return self.forward(x)
@@ -49,6 +47,5 @@ class CNN(torch.nn.Module):
     def forward(self, batch):
 
         x = torch.cat([conv_block(batch) for conv_block in self.conv_blocks], 2)
-        # print(x.shape)
         x = x.view(x.size(0), -1)
         return self.fc(x)

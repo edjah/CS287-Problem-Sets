@@ -68,7 +68,6 @@ def trainingdata_cbownn():
         y_lst.append(labels)
 
     xtrain = ntorch.cat(x_lst, dim='sentence')
-#     xtrain = torch.cat(x_lst)
     ytrain = torch.cat(y_lst)
 
     return (xtrain, ytrain)
@@ -86,9 +85,6 @@ def trainingdata_cnn():
         y_lst.append(batch.label.values)
 
     xtrain = ntorch.tensor(torch.cat(x_lst).transpose(1, 2), names=('sentence', 'channel', 'seqlen'))
-#     xtrain = torch.cat(x_lst).transpose(1, 2)
-
-    print(xtrain.shape)
     ytrain = torch.cat(y_lst)
 
     return (xtrain, ytrain)
@@ -96,7 +92,6 @@ def trainingdata_cnn():
 def transform_x_lr(sent, do_set_of_words=False, vocab_len=16284):
     # regular bag of words / set of words
     words = torch.bincount(sent, minlength=vocab_len)
-    # words[vocab_len] = 1
     if do_set_of_words:
         words = (words > 0)
     return ntorch.tensor(words.float(), names=('vocab',))

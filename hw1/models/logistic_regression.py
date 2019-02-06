@@ -18,8 +18,6 @@ class LogisticRegression(torch.nn.Module):
         testx_lst = []
         for i, sent in enumerate(sentences):
             testx_lst.append(transform_x_lr(sent, self.do_set_of_words).values)
-#             prob = self.weight.dot('vocab', named_x).sigmoid()
-#             results[i] = prob.values
         return self.model(torch.stack(testx_lst))
 
     def forward(self, text):

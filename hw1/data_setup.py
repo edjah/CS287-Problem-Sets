@@ -12,8 +12,8 @@ from collections import defaultdict
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
 # change this to `torch.FloatTensor` if you don't have a gpu
-torch.set_default_tensor_type(torch.FloatTensor)
-# torch.set_default_tensor_type(torch.cuda.FloatTensor)
+# torch.set_default_tensor_type(torch.FloatTensor)
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 # Our input $x$
@@ -59,11 +59,14 @@ for i, bigram in enumerate(sorted(all_bigrams)):
     bigram_map[bigram] = i
 
 
-def make_bigrams(sent):
+def make_bigrams(sent, do_unigrams=True):
     if isinstance(sent, torch.Tensor):
         sent = sent.tolist()
 
-    bigrams = [(i,) for i in sent]
+    if do_unigrams:
+        bigrams = [(i,) for i in sent]
+    else:
+        bigrams = []
     for i in range(len(sent) - 1):
         bigrams.append((sent[i], sent[i + 1]))
     return torch.tensor([bigram_map[b] for b in bigrams])

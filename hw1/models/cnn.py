@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from data_setup import torch, TEXT, train_iter, val_iter
+from data_setup import torch, TEXT
 
 WORD_VECS = TEXT.vocab.vectors
 

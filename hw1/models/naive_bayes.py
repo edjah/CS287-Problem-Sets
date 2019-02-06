@@ -2,9 +2,14 @@ from data_setup import torch, train_iter, val_iter, TEXT, bigram_map, make_bigra
 
 
 class NaiveBayes:
-    def __init__(self, alpha=1, do_set_of_words=False, do_bigrams=False):
+    def __init__(self, alpha=1, do_set_of_words=False, do_bigrams=False,
+                 do_unigrams=True):
+        self.do_unigrams = do_unigrams
         self.do_bigrams = do_bigrams
         self.do_set_of_words = do_set_of_words
+
+        assert self.do_unigrams or self.do_bigrams, \
+            'must enable at least one unigram and bigram'
 
         if self.do_bigrams:
             self.vocab_len = len(bigram_map)
@@ -38,14 +43,13 @@ class NaiveBayes:
         sentences = text.transpose('batch', 'seqlen').values.clone()
         for i, sent in enumerate(sentences):
             words = self.transform(sent)
-            y = self.r.dot(words) + self.b
-            results[i] = (y.sign().long() > 0)
+            results[i] = (self.r.dot(words) + self.b).sigmoid()
 
         return results
 
     def transform(self, sent):
         if self.do_bigrams:
-            words = make_bigrams(sent.tolist())
+            words = make_bigrams(sent.tolist(), self.do_unigrams)
 
         words = torch.bincount(sent, minlength=self.vocab_len).float()
         if self.do_set_of_words:

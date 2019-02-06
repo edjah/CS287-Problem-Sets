@@ -7,11 +7,13 @@ from torchtext.vocab import Vectors, GloVe
 from namedtensor import ntorch, NamedTensor
 from namedtensor.text import NamedField
 
+from collections import defaultdict
+
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
 # change this to `torch.FloatTensor` if you don't have a gpu
-torch.set_default_tensor_type(torch.FloatTensor)
 # torch.set_default_tensor_type(torch.FloatTensor)
+torch.set_default_tensor_type(torch.cuda.FloatTensor)
 
 
 # Our input $x$
@@ -35,68 +37,29 @@ train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
 url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
 TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
 
-# all functions to generate data for training/testing
+# glove = GloVe(name="6B", dim=300)
+# glove.vectors = glove.vectors[torch.arange(len(TEXT.vocab) + 10)]
 
-def trainingdata_lr():
-    # setting up
-    x_lst = []
-    y_lst = []
 
-    for batch in train_iter:
-        sentences = batch.text.transpose('batch', 'seqlen').values.clone()
-        y_lst.append(batch.label.values.float())
-        for sent in sentences:
-            x_lst.append(transform_x_lr(sent))
+# genrating a mapping from bigrams to indexes
+all_bigrams = set()
+for dataset in (train, val, test):
+    for example in dataset:
+        idx = [TEXT.vocab.stoi[word] for word in example.text]
+        all_bigrams |= set((i,) for i in idx)
+        for i in range(len(idx) - 1):
+            all_bigrams.add((idx[i], idx[i + 1]))
 
-    xtrain = ntorch.stack(x_lst, 'sentence')
-    # ytrain = ntorch.tensor(torch.cat(y_lst), names=('sentence',))
-    ytrain = torch.cat(y_lst)
+bigram_map = defaultdict(int)
+for i, bigram in enumerate(sorted(all_bigrams)):
+    bigram_map[bigram] = i
 
-    return (xtrain, ytrain)
 
-def trainingdata_cbownn():
-    # setting up data FOR CBOWNN
-    x_lst = []
-    y_lst = []
-    for batch in train_iter:
-        sentences = batch.text.transpose('batch', 'seqlen').values.clone()
-        labels = batch.label.values
-        xbatch = ntorch.tensor(TEXT.vocab.vectors[sentences].sum(dim=1),
-                               names=('sentence', 'embed'))
-#         xbatch = TEXT.vocab.vectors[sentences].sum(dim=1)
-        x_lst.append(xbatch)
-        y_lst.append(labels)
+def make_bigrams(sent):
+    if isinstance(sent, torch.Tensor):
+        sent = sent.tolist()
 
-    xtrain = ntorch.cat(x_lst, dim='sentence')
-#     xtrain = torch.cat(x_lst)
-    ytrain = torch.cat(y_lst)
-
-    return (xtrain, ytrain)
-
-def trainingdata_cnn():
-
-    # setting up data FOR CNN
-    x_lst = []
-    y_lst = []
-    for batch in train_iter:
-        sentences = batch.text.transpose('batch', 'seqlen').values.clone()
-        pad_amt = (0, 60 - sentences.shape[1])
-        sent_padded = torch.nn.functional.pad(sentences, pad_amt, value=1)
-        x_lst.append(TEXT.vocab.vectors[sent_padded])
-        y_lst.append(batch.label.values)
-
-    xtrain = ntorch.tensor(torch.cat(x_lst).transpose(1, 2), names=('sentence', 'channel', 'seqlen'))
-#     xtrain = torch.cat(x_lst).transpose(1, 2)
-
-    print(xtrain.shape)
-    ytrain = torch.cat(y_lst)
-
-    return (xtrain, ytrain)
-
-def transform_x_lr(sent, do_set_of_words=False, vocab_len=16284):
-    # regular bag of words / set of words
-    words = torch.bincount(sent, minlength=vocab_len + 1)
-    words[vocab_len] = 1
-    if do_set_of_words:
-        words = (words > 0)
-    return ntorch.tensor(words.float(), names=('vocab',))
+    bigrams = [(i,) for i in sent]
+    for i in range(len(sent) - 1):
+        bigrams.append((sent[i], sent[i + 1]))
+    return torch.tensor([bigram_map[b] for b in bigrams])

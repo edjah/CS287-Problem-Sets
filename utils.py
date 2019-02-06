@@ -1,4 +1,5 @@
 import time
+import torch
 
 
 class TimingContext:
@@ -24,3 +25,26 @@ class TimingContext:
             print(f'{prefix}{int(dur) // 60} min {int(dur) % 60} sec')
 
         print(self.suffix, end='')
+
+
+def chunks(iterator, n):
+    """Yield successive n-sized chunks from an iterator."""
+    assert isinstance(n, int) and n >= 1, '`n` must be a positive integer'
+
+    if isinstance(iterator, (list, tuple, str, bytes, torch.Tensor)):
+        # use a faster chunking algorithm for things that can be sliced
+        for i in range(0, len(iterator), n):
+            yield iterator[i:i + n]
+    else:
+        # use an optimized general chunking algorithm for things that can't
+        count = 0
+        chunk = []
+        for item in iterator:
+            chunk.append(item)
+            count += 1
+            if count >= n:
+                yield chunk
+                chunk = []
+                count = 0
+        if chunk:
+            yield chunk

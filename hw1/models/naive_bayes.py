@@ -1,10 +1,15 @@
-from data_setup import torch, train_iter, TEXT
+from data_setup import torch, train_iter, TEXT, bigram_map, make_bigrams
 
 
 class NaiveBayes:
-    def __init__(self, alpha=1, do_set_of_words=False):
-        self.vocab_len = len(TEXT.vocab)
+    def __init__(self, alpha=1, do_set_of_words=False, do_bigrams=False):
+        self.do_bigrams = do_bigrams
         self.do_set_of_words = do_set_of_words
+
+        if self.do_bigrams:
+            self.vocab_len = len(bigram_map)
+        else:
+            self.vocab_len = len(TEXT.vocab)
 
         p = alpha * torch.ones(self.vocab_len)
         q = alpha * torch.ones(self.vocab_len)
@@ -19,9 +24,7 @@ class NaiveBayes:
             neg_counts += len(labels) - labels.sum()
 
             for sent, label in zip(sentences, labels):
-                words = torch.bincount(sent, minlength=self.vocab_len).float()
-                if self.do_set_of_words:
-                    words = (words > 0).float()
+                words = self.transform(sent)
                 p += words * float(label == 1)
                 q += words * float(label == 0)
 
@@ -33,10 +36,17 @@ class NaiveBayes:
         results = torch.zeros(text.shape['batch'])
         sentences = text.transpose('batch', 'seqlen').values.clone()
         for i, sent in enumerate(sentences):
-            words = torch.bincount(sent, minlength=self.vocab_len).float()
-            if self.do_set_of_words:
-                words = (words > 0).float()
+            words = self.transform(sent)
             y = self.r.dot(words) + self.b
             results[i] = (y.sign().long() > 0)
 
         return results
+
+    def transform(self, sent):
+        if self.do_bigrams:
+            words = make_bigrams(sent.tolist())
+
+        words = torch.bincount(sent, minlength=self.vocab_len).float()
+        if self.do_set_of_words:
+            words = (words > 0).float()
+        return words

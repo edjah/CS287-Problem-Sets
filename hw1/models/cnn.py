@@ -1,4 +1,5 @@
-from data_setup import torch, TEXT, train_iter
+from data_setup import torch, TEXT
+
 
 class CNN(torch.nn.Module):
     def __init__(self, num_filters=10, kernel_sizes=(3, 4, 5),
@@ -35,20 +36,27 @@ class CNN(torch.nn.Module):
         )
 
     def __call__(self, text):
-        # print(batch.shape)
+        return self.forward(self.transform(text))
+
+    def forward(self, batch):
+        x = torch.cat([conv_block(batch) for conv_block in self.conv_blocks], 2)
+        x = x.view(x.size(0), -1)
+        return self.fc(x)
+
+    def get_data(self, dataset):
+        x_lst = []
+        y_lst = []
+        for batch in dataset:
+            x_lst.append(self.transform(batch.text))
+            y_lst.append(batch.label.values)
+
+        X = torch.cat(x_lst)
+        Y = torch.cat(y_lst)
+        return X, Y
+
+    def transform(self, text):
         sentences = text.transpose('batch', 'seqlen').values.clone()
         pad_amt = (0, self.max_words - sentences.shape[1])
         sent_padded = torch.nn.functional.pad(sentences, pad_amt, value=1)
         batch_embeds = TEXT.vocab.vectors[sent_padded]
-
-        # print("Batch embed dims: ", batch_embeds.shape)
-        x = batch_embeds.transpose(1, 2)
-
-        return self.forward(x)
-
-    def forward(self, batch):
-
-        x = torch.cat([conv_block(batch) for conv_block in self.conv_blocks], 2)
-        # print(x.shape)
-        x = x.view(x.size(0), -1)
-        return self.fc(x)
+        return batch_embeds.transpose(1, 2)

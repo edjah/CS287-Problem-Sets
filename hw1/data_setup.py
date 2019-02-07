@@ -41,8 +41,8 @@ train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
 url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
 TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
 
-# glove = GloVe(name="6B", dim=300)
-# glove.vectors = glove.vectors[torch.arange(len(TEXT.vocab) + 10)]
+glove = GloVe(name="6B", dim=300)
+glove.vectors = glove.vectors[torch.arange(len(TEXT.vocab) + 10)]
 
 
 # genrating a mapping from bigrams to indexes

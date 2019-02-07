@@ -1,10 +1,12 @@
-from data_setup import torch, TEXT
+from data_setup import torch, TEXT, glove
 
 WORD_VEC = TEXT.vocab.vectors
+WORD_VEC2 = glove.vectors
 
 
 class Ensemble(torch.nn.Module):
     def __init__(self, *pretrained_models, second_layer_size=10,
+                 dropout_rate=0.5,
                  include_cbow=False, include_bag_of_words=False):
         super().__init__()
 
@@ -14,11 +16,12 @@ class Ensemble(torch.nn.Module):
 
         self.inp_size = len(self.pretrained_models)
         if self.include_cbow:
-            self.inp_size += WORD_VEC.shape[1]
+            self.inp_size += WORD_VEC.shape[1] + WORD_VEC2.shape[1]
         if self.include_bag_of_words:
             self.inp_size += len(TEXT.vocab)
 
         self.fc = torch.nn.Sequential(
+            torch.nn.Dropout(dropout_rate),
             torch.nn.Linear(self.inp_size, second_layer_size),
             torch.nn.Tanh(),
             torch.nn.Linear(second_layer_size, 1),
@@ -49,8 +52,6 @@ class Ensemble(torch.nn.Module):
         with torch.no_grad():
             individual_results = [model(batch) for model in self.pretrained_models]
             x = torch.stack(individual_results, dim=1)
-
-            # text.transpose('batch', 'seqlen').values.clone()
             batch = batch.values.transpose(0, 1)
 
             if self.include_bag_of_words:
@@ -62,10 +63,11 @@ class Ensemble(torch.nn.Module):
                 x = torch.cat((x, bags_of_words), dim=1)
 
             if self.include_cbow:
-                cbows = []
-                for sent in batch:
-                    cbows.append(WORD_VEC[sent].sum(dim=0))
-                cbows = torch.stack(cbows)
-                x = torch.cat((x, cbows), dim=1)
+                for word_vectors in (WORD_VEC, WORD_VEC2):
+                    cbows = []
+                    for sent in batch:
+                        cbows.append(word_vectors[sent].sum(dim=0))
+                    cbows = torch.stack(cbows)
+                    x = torch.cat((x, cbows), dim=1)
 
             return x

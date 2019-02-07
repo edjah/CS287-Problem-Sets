@@ -46,9 +46,6 @@ class CNN(torch.nn.Module):
         conved = [torch.cat((conv(e1), conv(e2)), dim=2) for conv in self.convs]
         relud = [F.relu(c).squeeze(3) for c in conved]
         pooled = [F.max_pool1d(r, r.shape[2]).squeeze(2) for r in relud]
-
-        # conved = [F.relu(conv(embeddings)).squeeze(3) for conv in self.convs]
-        # pooled = [F.max_pool1d(conv, conv.shape[2]).squeeze(2) for conv in conved]
         return self.fc(torch.cat(pooled, dim=1))
 
     def get_data(self, datasets):

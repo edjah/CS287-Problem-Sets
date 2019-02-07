@@ -24,7 +24,7 @@ class LogisticRegression(torch.nn.Module):
     def __call__(self, text):
         sentences = text.transpose('batch', 'seqlen').values.clone()
         vals = [self.transform(sent) for sent in sentences]
-        return self.model(torch.stack(vals))
+        return self.model(torch.stack(vals)).flatten()
 
     def forward(self, text):
         return self.model(text)

@@ -23,7 +23,7 @@ class RNN(torch.nn.Module):
         )
 
     def __call__(self, text):
-        return self.forward(self.transform(text))
+        return self.forward(self.transform(text)).flatten()
 
     def forward(self, batch):
         batch = batch.transpose(0, 1)

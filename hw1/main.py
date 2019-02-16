@@ -60,7 +60,7 @@ def evaluate(model, x, y):
 def train_model(model, num_iter=300, learning_rate=0.001,
                 weight_decay=0, batch_size=100, log_freq=10):
     # getting properly formatted training/validation data
-    xtrain, ytrain = model.get_data((train_iter, val_iter))
+    xtrain, ytrain = model.get_data((train_iter,))
     xval, yval = model.get_data((test_iter,))
 
     # training
@@ -119,40 +119,40 @@ def train_model(model, num_iter=300, learning_rate=0.001,
 
 
 if __name__ == '__main__':
-    # naive bayes
-    with TimingContext('Training Naive Bayes', suffix='\n'):
-        nb_model = NaiveBayes(
-            alpha=1,
-            do_set_of_words=False,
-            do_bigrams=False
-        )
-    test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
-    test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
-    test_model(nb_model, test_iter, description='Naive Bayes: Test Set')
+    # # naive bayes
+    # with TimingContext('Training Naive Bayes', suffix='\n'):
+    #     nb_model = NaiveBayes(
+    #         alpha=2,
+    #         do_set_of_words=False,
+    #         do_bigrams=False
+    #     )
+    # test_model(nb_model, train_iter, description='Naive Bayes: Training Set')
+    # test_model(nb_model, val_iter, description='Naive Bayes: Validation Set')
+    # test_model(nb_model, test_iter, description='Naive Bayes: Test Set')
 
-    # logistic regression
-    with TimingContext('Training Logistic Regression', suffix='\n'):
-        lr_model = LogisticRegression(
-            do_set_of_words=False, do_bigrams=False, do_embeddings=False
-        )
-        train_model(
-            lr_model, num_iter=200, learning_rate=0.01,
-            log_freq=10, batch_size=1024
-        )
-    test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
-    test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')
-    test_model(lr_model, test_iter, description='Logistic Reg: Test Set')
+    # # logistic regression
+    # with TimingContext('Training Logistic Regression', suffix='\n'):
+    #     lr_model = LogisticRegression(
+    #         do_set_of_words=False, do_bigrams=False, do_embeddings=False
+    #     )
+    #     train_model(
+    #         lr_model, num_iter=200, learning_rate=0.01,
+    #         log_freq=10, batch_size=1024
+    #     )
+    # test_model(lr_model, train_iter, description='Logistic Reg: Training Set')
+    # test_model(lr_model, val_iter, description='Logistic Reg: Validation Set')
+    # test_model(lr_model, test_iter, description='Logistic Reg: Test Set')
 
-    # CBOW neural net regression
-    with TimingContext('Training CBOW Neural Net', suffix='\n'):
-        cbow_nn = CbowNN(do_embedding=True, second_layer_size=20)
-        train_model(
-            cbow_nn, num_iter=1000, learning_rate=0.001, batch_size=1000,
-            log_freq=50
-        )
-    test_model(cbow_nn, train_iter, description='CBOW NN: Training Set')
-    test_model(cbow_nn, val_iter, description='CBOW NN: Validation Set')
-    test_model(cbow_nn, test_iter, description='CBOW NN: Test Set')
+    # # CBOW neural net regression
+    # with TimingContext('Training CBOW Neural Net', suffix='\n'):
+    #     cbow_nn = CbowNN(do_embedding=True, second_layer_size=20)
+    #     train_model(
+    #         cbow_nn, num_iter=1000, learning_rate=0.001, batch_size=1000,
+    #         log_freq=50
+    #     )
+    # test_model(cbow_nn, train_iter, description='CBOW NN: Training Set')
+    # test_model(cbow_nn, val_iter, description='CBOW NN: Validation Set')
+    # test_model(cbow_nn, test_iter, description='CBOW NN: Test Set')
 
     # CNN
     with TimingContext('Training CNN', suffix='\n'):
@@ -161,7 +161,7 @@ if __name__ == '__main__':
             dropout_rate=0.5
         )
         train_model(
-            cnn, num_iter=200, learning_rate=0.001, batch_size=256, log_freq=1,
+            cnn, num_iter=200, learning_rate=0.001, batch_size=1500, log_freq=1,
             weight_decay=0
         )
 
@@ -169,42 +169,40 @@ if __name__ == '__main__':
     test_model(cnn, val_iter, description='CNN: Validation Set')
     test_model(cnn, test_iter, description='CNN: Test Set')
 
-    # RNN
-    with TimingContext('Training RNN', suffix='\n'):
-        rnn = RNN(
-            hidden_size=50, model_class=torch.nn.LSTM, dropout_rate=0.5,
-            num_layers=2
-        )
-        train_model(
-            rnn, num_iter=50, learning_rate=0.001, batch_size=2048,
-            log_freq=5
-        )
+    # # RNN
+    # with TimingContext('Training RNN', suffix='\n'):
+    #     rnn = RNN(
+    #         hidden_size=50, model_class=torch.nn.LSTM, dropout_rate=0.5,
+    #         num_layers=2
+    #     )
+    #     train_model(
+    #         rnn, num_iter=50, learning_rate=0.001, batch_size=2048,
+    #         log_freq=5
+    #     )
 
-    test_model(rnn, train_iter, description='RNN: Training Set')
-    test_model(rnn, val_iter, description='RNN: Validation Set')
-    test_model(rnn, test_iter, description='RNN: Test Set')
+    # test_model(rnn, train_iter, description='RNN: Training Set')
+    # test_model(rnn, val_iter, description='RNN: Validation Set')
+    # test_model(rnn, test_iter, description='RNN: Test Set')
 
-    # Ensemble
-    with TimingContext('Training Ensemble', suffix='\n'):
-        ensemble = Ensemble(
-            NaiveBayes(alpha=2, do_set_of_words=True, do_bigrams=False),
-            NaiveBayes(alpha=2, do_set_of_words=True, do_bigrams=True, do_unigrams=False),
-            NaiveBayes(alpha=2, do_set_of_words=False, do_bigrams=False),
-            NaiveBayes(alpha=2, do_set_of_words=False, do_bigrams=True, do_unigrams=False),
-            dropout_rate=0.5,
-            second_layer_size=50,
-            include_cbow=True,
-            include_bag_of_words=True,
-        )
-        train_model(
-            ensemble, num_iter=100, learning_rate=0.001, batch_size=256,
-            log_freq=1
-        )
+    # # Ensemble
+    # with TimingContext('Training Ensemble', suffix='\n'):
+    #     ensemble = Ensemble(
+    #         NaiveBayes(alpha=1.5, do_set_of_words=False, do_bigrams=False),
+    #         NaiveBayes(alpha=1.5, do_set_of_words=False, do_bigrams=True, do_unigrams=False),
+    #         dropout_rate=0.5,
+    #         second_layer_size=100,
+    #         include_cbow=True,
+    #         include_bag_of_words=True,
+    #     )
+    #     train_model(
+    #         ensemble, num_iter=100, learning_rate=0.00025, batch_size=256,
+    #         log_freq=1
+    #     )
 
-    test_model(ensemble, train_iter, description='Ensemble: Training Set')
-    test_model(ensemble, val_iter, description='Ensemble: Validation Set')
-    test_model(ensemble, test_iter, description='Ensemble: Test Set')
-    generate_predictions(ensemble)
+    # test_model(ensemble, train_iter, description='Ensemble: Training Set')
+    # test_model(ensemble, val_iter, description='Ensemble: Validation Set')
+    # test_model(ensemble, test_iter, description='Ensemble: Test Set')
+    # generate_predictions(ensemble)
 
     # # BERT
     # with TimingContext('Training BERT', suffix='\n'):

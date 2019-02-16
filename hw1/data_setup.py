@@ -44,6 +44,9 @@ TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
 glove = GloVe(name="6B", dim=300)
 glove.vectors = glove.vectors[torch.arange(len(TEXT.vocab) + 10)]
 
+idx = torch.arange(len(TEXT.vocab.vectors))
+EMBEDDINGS = torch.cat((TEXT.vocab.vectors[idx], glove.vectors[idx]), dim=1)
+
 
 # genrating a mapping from bigrams to indexes
 all_bigrams = set()

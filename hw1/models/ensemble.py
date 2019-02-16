@@ -1,7 +1,4 @@
-from data_setup import torch, TEXT, glove
-
-WORD_VEC = TEXT.vocab.vectors
-WORD_VEC2 = glove.vectors
+from data_setup import torch, TEXT, EMBEDDINGS
 
 
 class Ensemble(torch.nn.Module):
@@ -16,7 +13,8 @@ class Ensemble(torch.nn.Module):
 
         self.inp_size = len(self.pretrained_models)
         if self.include_cbow:
-            self.inp_size += WORD_VEC.shape[1] + WORD_VEC2.shape[1]
+            self.inp_size += EMBEDDINGS.shape[1]
+            self.embeddings = torch.nn.Embedding.from_pretrained
         if self.include_bag_of_words:
             self.inp_size += len(TEXT.vocab)
 
@@ -49,25 +47,23 @@ class Ensemble(torch.nn.Module):
         return (X, Y)
 
     def transform(self, batch):
-        with torch.no_grad():
-            individual_results = [model(batch) for model in self.pretrained_models]
-            x = torch.stack(individual_results, dim=1)
-            batch = batch.values.transpose(0, 1)
+        individual_results = [model(batch) for model in self.pretrained_models]
+        x = torch.stack(individual_results, dim=1)
+        batch = batch.values.transpose(0, 1)
 
-            if self.include_bag_of_words:
-                bags_of_words = []
-                for sent in batch:
-                    bags_of_words.append(torch.bincount(sent, minlength=len(TEXT.vocab)))
+        if self.include_bag_of_words:
+            bags_of_words = []
+            for sent in batch:
+                bags_of_words.append(torch.bincount(sent, minlength=len(TEXT.vocab)))
 
-                bags_of_words = torch.stack(bags_of_words).float()
-                x = torch.cat((x, bags_of_words), dim=1)
+            bags_of_words = torch.stack(bags_of_words).float()
+            x = torch.cat((x, bags_of_words), dim=1)
 
-            if self.include_cbow:
-                for word_vectors in (WORD_VEC, WORD_VEC2):
-                    cbows = []
-                    for sent in batch:
-                        cbows.append(word_vectors[sent].sum(dim=0))
-                    cbows = torch.stack(cbows)
-                    x = torch.cat((x, cbows), dim=1)
+        if self.include_cbow:
+            cbows = []
+            for sent in batch:
+                cbows.append(EMBEDDINGS[sent].sum(dim=0))
+            cbows = torch.stack(cbows)
+            x = torch.cat((x, cbows), dim=1)
 
-            return x
+        return x

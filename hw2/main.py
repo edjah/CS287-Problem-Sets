@@ -8,62 +8,7 @@ from torchtext.data.iterator import BPTTIterator
 from torchtext.data import Batch, Dataset
 
 from ngram_model import NGramModel
-
-DEBUG_MODE = False
-
-# Our input $x$
-TEXT = NamedField(names=('seqlen',))
-
-# Data distributed with the assignment
-train, val, test = torchtext.datasets.LanguageModelingDataset.splits(
-    path='.', train='data/train.txt', validation='data/valid.txt',
-    test='data/valid.txt', text_field=TEXT
-)
-
-# use a smaller vocab size when debugging
-if not DEBUG_MODE:
-    TEXT.build_vocab(train)
-else:
-    TEXT.build_vocab(train, max_size=1000)
-
-
-class NamedBpttIterator(BPTTIterator):
-    def __iter__(self):
-        text = self.dataset[0].text
-        TEXT = self.dataset.fields['text']
-        TEXT.eos_token = None
-
-        num_batches = math.ceil(len(text) / self.batch_size)
-        pad_amount = int(num_batches * self.batch_size - len(text))
-        text += [TEXT.pad_token] * pad_amount
-
-        data = TEXT.numericalize([text], device=self.device)
-        data = data.stack(('seqlen', 'batch'), 'flat') \
-                   .split('flat', ('batch', 'seqlen'), batch=self.batch_size) \
-                   .transpose('seqlen', 'batch')
-
-        fields = [('text', TEXT), ('target', TEXT)]
-        dataset = Dataset(examples=self.dataset.examples, fields=fields)
-
-        while True:
-            for i in range(0, len(self) * self.bptt_len, self.bptt_len):
-                self.iterations += 1
-                seq_len = min(self.bptt_len, len(data) - i - 1)
-                yield Batch.fromvars(
-                    dataset, self.batch_size,
-                    text=data.narrow('seqlen', i, seq_len),
-                    target=data.narrow('seqlen', i + 1, seq_len)
-                )
-
-            if not self.repeat:
-                return
-
-
-train_iter, val_iter, test_iter = NamedBpttIterator.splits(
-    (train, val, test), batch_size=10, device=torch.device('cuda'),
-    bptt_len=32, repeat=False
-)
-
+from nnlm_cnn import NNLMcnn
 
 def text_to_idx(dataset):
     train_txt = next(iter(dataset)).text
@@ -82,7 +27,80 @@ def generate_predictions(model):
             print('%d,%s' % (i, ' '.join(predictions)), file=fout)
 
 
+def train_model(model, num_iter=300, learning_rate=0.001,
+                weight_decay=0, log_freq=1, batch_size=32):
+
+    xtrain, ytrain, num_train = model.get_data(train_iter)
+    xval, yval, num_val = model.get_data(val_iter)
+
+    model.train()
+    opt = torch.optim.Adam(
+        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
+    loss_fn = torch.nn.NLLLoss()
+
+    for i in range(num_iter):
+        try:
+            for idx in range(len(xtrain)):
+                opt.zero_grad()
+
+                xbatch = xtrain[idx]
+                ybatch = ytrain[idx]
+
+                probs = model.forward(xbatch)
+                loss = loss_fn(probs.log(), ybatch)
+
+                # compute gradients and update weights
+                loss.backward()
+                opt.step()
+
+                if (idx % 100 == 0):
+                    print (i, idx)
+
+            # evaluate performance on entire sets
+            model.eval()
+            train_acc, train_loss = evaluate(model, xtrain, ytrain, num_train)
+            val_acc, val_loss = evaluate(model, xval, yval, num_val)
+
+            model.train()
+
+            if i == 0 or i == num_iter - 1 or (i + 1) % log_freq == 0:
+                print(f'Epoch {i + 1}\n{"=" * len("Epoch {}".format(i + 1))}')
+                print(f'Train Loss: {train_loss:.5f}\t Train Accuracy: {train_acc:.2f}%')
+                print(f'Val Loss: {val_loss:.5f}\t Val Accuracy: {val_acc:.2f}%\n')
+
+        except KeyboardInterrupt:
+            print(f'\nStopped training after {i} epochs...')
+            break
+
+    model.eval()
+
+
+def evaluate(model, x, y, num_words):
+    with torch.no_grad():
+        loss_fn = torch.nn.NLLLoss(reduction='sum')
+        loss = 0
+        num_correct = 0
+
+        for i in range(len(x)):
+            probs = model.forward(x[i])
+            loss += loss_fn(probs.log(), y[i])
+            num_correct += (probs.argmax(dim=1) == y[i]).sum().float()
+
+        return 100.0 * num_correct / num_words, loss / num_words
+
+
 if __name__ == '__main__':
+
+    if True:
+        conv_nnlm = NNLMconv(5, hidden_size=100, num_layers=3,
+                            dropout_rate=0.5, num_filters=50)
+        train_model(conv_nnlm)
+
+        rnn_nnlm = NNLMrec(5, hidden_size=100, num_layers=3,
+                            dropout_rate=0.5)
+        train_model(rnn_nnlm)
+
     train_idx = text_to_idx(train)
     orig_val_idx = text_to_idx(val)
 

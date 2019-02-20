@@ -28,7 +28,7 @@ def generate_predictions(model):
 
 
 def train_model(model, num_iter=300, learning_rate=0.001,
-                weight_decay=0, log_freq=1, batch_size=32):
+                weight_decay=0, log_freq=1):
 
     xtrain, ytrain, num_train = model.get_data(train_iter)
     xval, yval, num_val = model.get_data(val_iter)

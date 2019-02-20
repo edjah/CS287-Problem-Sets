@@ -64,7 +64,7 @@ class NNLMconv(torch.nn.Module):
         y_batches = []
         total_words = 0
         for batch in batchiter:
-            x, y, num_words = formatBatch(batch)
+            x, y, num_words = self.formatBatch(batch)
             x_batches.append(x)
             y_batches.append(y)
             total_words += num_words

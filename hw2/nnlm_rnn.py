@@ -3,7 +3,7 @@ from data_setup import torch, TEXT
 WORD_VECS = TEXT.vocab.vectors
 
 class NNLMrec(torch.nn.Module):
-    def __init__(n, self, hidden_size=100, num_layers=3, dropout_rate=0.3):
+    def __init__(self, n, hidden_size=100, num_layers=3, dropout_rate=0.3):
         super().__init__()
 
         self.vocab_length = len(TEXT.vocab)
@@ -52,7 +52,7 @@ class NNLMrec(torch.nn.Module):
         y_batches = []
         total_words = 0
         for batch in batchiter:
-            x, y, num_words = formatBatch(batch)
+            x, y, num_words = self.formatBatch(batch)
             x_batches.append(x)
             y_batches.append(y)
             total_words += num_words

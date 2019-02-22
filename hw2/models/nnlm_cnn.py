@@ -2,7 +2,10 @@ from data_setup import torch, TEXT
 
 WORD_VECS = TEXT.vocab.vectors
 
-class NNLMconv(torch.nn.Module):
+BATCHSIZE = 32
+
+
+class NNLM_CNN(torch.nn.Module):
     def __init__(self, n, hidden_size=100, num_layers=3, dropout_rate=0.3, num_filters=50):
         super().__init__()
 
@@ -29,7 +32,6 @@ class NNLMconv(torch.nn.Module):
 
         self.out = torch.nn.Sequential(*linear_blocks)
 
-
     def forward(self, xvals):
         xvals = xvals.transpose(0, 1)
         embeddings = self.dropout(self.embedding(xvals)).permute(1, 2, 0)
@@ -39,7 +41,6 @@ class NNLMconv(torch.nn.Module):
         return out
 
     def formatBatch(self, batch):
-
         samples_list = []
         results_list = []
         num_words = 0
@@ -57,7 +58,7 @@ class NNLMconv(torch.nn.Module):
         allsamples = torch.stack(samples_list)
         allresults = torch.cat(results_list)
 
-        return (allsamples, allresults, num_words)
+        return (allsamples, allresults)
 
     def get_data(self, batchiter):
         x_batches = []
@@ -69,4 +70,4 @@ class NNLMconv(torch.nn.Module):
             y_batches.append(y)
             total_words += num_words
 
-        return x_batches, y_batches, total_words
+        return x_batches, y_batches

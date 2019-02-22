@@ -2,7 +2,8 @@ from data_setup import torch, TEXT
 
 WORD_VECS = TEXT.vocab.vectors
 
-class NNLMrec(torch.nn.Module):
+
+class NNLM_RNN(torch.nn.Module):
     def __init__(self, n, hidden_size=100, num_layers=3, dropout_rate=0.3):
         super().__init__()
 
@@ -35,7 +36,7 @@ class NNLMrec(torch.nn.Module):
             targets = batch.target.get("batch", i).values.data
 
             num_words += len(sent)
-            padded_sent = torch.nn.functional.pad(sent, (n - 1, 0), value=0)
+            padded_sent = torch.nn.functional.pad(sent, (self.n - 1, 0), value=0)
             samples = torch.stack([padded_sent[i:i + self.n - 1] for i in range(0, len(sent))])
             nextwords = sent
 
@@ -45,7 +46,7 @@ class NNLMrec(torch.nn.Module):
         allsamples = torch.cat(samples_list)
         allresults = torch.cat(results_list)
 
-        return (allsamples, allresults, num_words)
+        return (allsamples, allresults)
 
     def get_data(self, batchiter):
         x_batches = []
@@ -57,4 +58,4 @@ class NNLMrec(torch.nn.Module):
             y_batches.append(y)
             total_words += num_words
 
-        return x_batches, y_batches, total_words
+        return x_batches, y_batches

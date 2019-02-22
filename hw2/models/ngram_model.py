@@ -5,7 +5,7 @@ VOCAB_LEN = 10001
 
 
 class NGramModel:
-    def __init__(self, train_idx, max_ngram, min_count=1):
+    def __init__(self, train, max_ngram, min_count=1):
         self.max_ngram = max_ngram
         self._prior = None
 
@@ -15,13 +15,13 @@ class NGramModel:
         }
 
         # making sure that the training data is left padded appropriately
-        train_idx = (0,) * (self.max_ngram - 1) + tuple(train_idx)
+        train = (0,) * (self.max_ngram - 1) + tuple(train)
 
         # counting
         for n in range(self.max_ngram):
-            for i in range(len(train_idx) - n):
-                prefix = train_idx[i:i+n]
-                target = train_idx[i + n]
+            for i in range(len(train) - n):
+                prefix = train[i:i+n]
+                target = train[i + n]
                 counts[n][prefix][target] += 1
 
         # converting counts to probabilities
@@ -57,10 +57,9 @@ class NGramModel:
             probs.append(total_prob)
         return torch.tensor(probs)
 
-    def train_interpolation(self, train_idx, val_idx, num_epochs=1000,
-                            quiet=False):
-        train_probs = self.get_raw_probs(train_idx)
-        val_probs = self.get_raw_probs(val_idx)
+    def train_interpolation(self, train, val, num_epochs=1000, quiet=False):
+        train_probs = self.get_raw_probs(train)
+        val_probs = self.get_raw_probs(val)
 
         unnormed_weights = torch.randn(self.max_ngram, requires_grad=True)
         opt = torch.optim.Adam([unnormed_weights], lr=0.01)

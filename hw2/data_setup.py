@@ -1,6 +1,8 @@
+import math
 import torch
 import torchtext
-from torchtext.vocab import Vectors, GloVe
+import torch.nn as nn
+from torchtext.vocab import GloVe
 
 from torchtext.data.iterator import BPTTIterator
 from torchtext.data import Batch, Dataset
@@ -8,8 +10,6 @@ from torchtext.data import Batch, Dataset
 # Named Tensor wrappers
 from namedtensor import ntorch, NamedTensor
 from namedtensor.text import NamedField
-
-from collections import defaultdict
 
 
 # setting the default tensor type to `torch.cuda.FloatTensor`
@@ -26,7 +26,7 @@ TEXT = NamedField(names=('seqlen',))
 # Data distributed with the assignment
 train, val, test = torchtext.datasets.LanguageModelingDataset.splits(
     path='.', train='data/train.txt', validation='data/valid.txt',
-    test='data/valid.txt', text_field=TEXT
+    test='data/test.txt', text_field=TEXT
 )
 
 # use a smaller vocab size when debugging
@@ -73,5 +73,5 @@ train_iter, val_iter, test_iter = NamedBpttIterator.splits(
     bptt_len=32, repeat=False
 )
 
-url = 'https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.simple.vec'
-TEXT.vocab.load_vectors(vectors=Vectors('wiki.simple.vec', url=url))
+TEXT.vocab.load_vectors(vectors=GloVe("840B"))
+WORD_VECS = TEXT.vocab.vectors

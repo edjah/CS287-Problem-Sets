@@ -1,8 +1,5 @@
 from namedtensor import ntorch
-from data_setup import EN, DE, DE_VECS, EN_VECS, BOS_WORD, EOS_WORD
-
-BOS_IND = EN.vocab.stoi[BOS_WORD]
-EOS_IND = EN.vocab.stoi[EOS_WORD]
+from data_setup import EN, DE, DE_VECS, EN_VECS, BOS_IND, EOS_IND
 
 
 class EncoderRNN(ntorch.nn.Module):

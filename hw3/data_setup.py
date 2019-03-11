@@ -60,6 +60,9 @@ train, val, test = datasets.IWSLT.splits(
 DE.build_vocab(train.src, min_freq=MIN_FREQ)
 EN.build_vocab(train.trg, min_freq=MIN_FREQ)
 
+BOS_IND = EN.vocab.stoi[BOS_WORD]
+EOS_IND = EN.vocab.stoi[EOS_WORD]
+
 
 # Loading word vectors
 EN.vocab.load_vectors(vectors=GloVe("840B"))

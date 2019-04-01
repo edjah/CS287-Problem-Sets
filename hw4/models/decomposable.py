@@ -50,7 +50,7 @@ class InputNN(ntorch.nn.Module):
 
         self.emb_dropout = ntorch.nn.Dropout(emb_dropout)
         self.embeddings = ntorch.nn.Embedding.from_pretrained(
-            WORD_VECS.values, freeze=False
+            WORD_VECS.values, freeze=True
         )
 
         if self.intra_attn:

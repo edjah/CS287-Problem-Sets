@@ -22,7 +22,7 @@ LABEL.build_vocab(train)
 
 # bucketing the dataset into iterators
 train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
-    (train, val, test), batch_size=128, device=torch.device('cuda'),
+    (train, val, test), batch_size=64, device=torch.device('cuda'),
     repeat=False
 )
 

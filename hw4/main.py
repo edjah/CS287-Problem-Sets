@@ -9,8 +9,7 @@ from namedtensor import ntorch
 from data_setup import train_iter, val_iter, test
 
 from models.decomposable import AttendNN
-
-ATTEND_NN_WEIGHTS_FILE = 'weights/decomposable_attention_2_layers_200_hidden_intra_attn'
+from models.mixture import LearnedEnsemble
 
 
 def evaluate(model, batches):
@@ -32,7 +31,11 @@ def evaluate(model, batches):
 
 
 def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
-                grad_clip=5, log_freq=100):
+                grad_clip=5, log_freq=100, save_file=None):
+
+    if os.path.exists(save_file):
+        model.load_state_dict(torch.load(save_file))
+
     val_loss, val_acc = evaluate(model, val_iter)
     print(f'Initial Val Loss: {val_loss:.5f}')
     print(f'Initial Val Acc: {val_acc:.5f}\n')
@@ -98,7 +101,7 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
                     k: p.detach().clone() for k, p in model.named_parameters()
                 }
                 best_val_acc = val_acc
-                torch.save(model.state_dict(), ATTEND_NN_WEIGHTS_FILE)
+                torch.save(model.state_dict(), save_file)
 
             # logging
             msg = f'Epoch {epoch + 1} | {round(time.time() - start_time)} sec'
@@ -150,16 +153,39 @@ def generate_predictions(model):
             fp.write(str(i) + ',' + str(pred) + '\n')
 
 
-if __name__ == '__main__':
-    model = AttendNN(
-        num_layers=2, hidden_size=200, dropout=0.2, intra_attn=True
-    )
+# where weights are stored for use in ensemble models
+M1_WEIGHTS = 'weights/colab_86.25_val_acc_decomposable_attention_2_layers_300_hidden_v3'
+M2_WEIGHTS = 'weights/azure_86.14_val_acc_decomposable_attention_2_layers_200_hidden_v3'
+M3_WEIGHTS = 'weights/local_85.64_val_acc_decomposable_attention_2_layers_200_hidden_v3_intra_attn'
+M4_WEIGHTS = 'weights/azure_85.95_val_acc_decomposable_attention_2_layers_300_hidden_v3_intra_attn'
 
-    if os.path.exists(ATTEND_NN_WEIGHTS_FILE):
-        model.load_state_dict(torch.load(ATTEND_NN_WEIGHTS_FILE))
+
+def build_ensemble(ensemble_cls, **kwargs):
+    m1 = AttendNN(num_layers=2, hidden_size=300, dropout=0.2, intra_attn=False)
+    m2 = AttendNN(num_layers=2, hidden_size=200, dropout=0.2, intra_attn=False)
+    m3 = AttendNN(num_layers=2, hidden_size=200, dropout=0.2, intra_attn=True)
+    m4 = AttendNN(num_layers=2, hidden_size=300, dropout=0.2, intra_attn=True)
+
+    m1.load_state_dict(torch.load(M1_WEIGHTS))
+    m2.load_state_dict(torch.load(M2_WEIGHTS))
+    m3.load_state_dict(torch.load(M3_WEIGHTS))
+    m4.load_state_dict(torch.load(M4_WEIGHTS))
+
+    return ensemble_cls(m1, m2, m3, m4, **kwargs)
+
+
+if __name__ == '__main__':
+    # model = AttendNN(
+    #     num_layers=2, hidden_size=200, dropout=0.2, intra_attn=True
+    # )
+    # save_file = 'weights/decomposable_attention_2_layers_200_hidden_v3'
+
+    model = build_ensemble(LearnedEnsemble, fine_tune=True)
+    save_file = 'weights/ensemble_of_4'
 
     train_model(
         model, learning_rate=0.0005, weight_decay=0, grad_clip=5,
-        log_freq=1000
+        log_freq=1000, save_file=save_file
     )
+    print('Ensemble distribution:', model.weights.detach().softmax(dim=0))
     generate_predictions(model)

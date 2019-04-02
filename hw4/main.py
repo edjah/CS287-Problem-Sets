@@ -2,13 +2,15 @@ import time
 import torch
 import os
 import torchtext
+import traceback
+
 from tqdm import tqdm
 from namedtensor import ntorch
 from data_setup import train_iter, val_iter, test
 
 from models.decomposable import AttendNN
 
-ATTEND_NN_WEIGHTS_FILE = 'weights/decomposable_attention_2_layers_200_hidden'
+ATTEND_NN_WEIGHTS_FILE = 'weights/decomposable_attention_2_layers_200_hidden_v3'
 
 
 def evaluate(model, batches):
@@ -46,14 +48,6 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
     best_val_acc = float('-inf')
 
     for epoch in range(num_epochs):
-
-        # decay learning rate by 4% every epoch. goes to 1.6% after 100 epochs
-        learning_rate *= 0.96
-        state_dict = opt.state_dict()
-        for param_group in state_dict['param_groups']:
-            param_group['lr'] = learning_rate
-        opt.load_state_dict(state_dict)
-
         curr_loss = 0
         num_correct = 0
         total_num = 0
@@ -71,6 +65,11 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
                 num_correct += (predictions == batch.label).sum().item()
                 total_num += len(batch)
 
+                # compute gradients, clipping them, and updating weights
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                opt.step()
+
                 # print out intermediate training accuracy and loss
                 if i % log_freq == 0:
                     msg = f'Batch: {i} / {len(train_iter)}'
@@ -80,11 +79,6 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
                     curr_loss = 0
                     num_correct = 0
                     total_num = 0
-
-                # compute gradients, clipping them, and updating weights
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-                opt.step()
 
             # evaluate performance on the validation set
             model.eval()
@@ -105,9 +99,11 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
             print(f'Full Validation Loss: {val_loss:.5f}')
             print(f'Full Validation Acc: {val_acc:.5f}\n')
 
-        except Exception as e:
+        except BaseException as e:
             if not isinstance(e, KeyboardInterrupt):
                 print(f'Got unexpected interrupt: {e!r}')
+                traceback.print_exc()
+
             print(f'\nStopped training after {epoch} epochs...')
             break
 
@@ -128,6 +124,7 @@ def generate_predictions(model):
 
     predictions = []
     num_correct = 0
+
     tot_count = 0
 
     with torch.no_grad():
@@ -148,15 +145,14 @@ def generate_predictions(model):
 
 if __name__ == '__main__':
     model = AttendNN(
-        num_layers=2, hidden_size=200, dropout=0.2, emb_dropout=0.0,
-        intra_attn=False
+        num_layers=2, hidden_size=200, dropout=0.2, intra_attn=False
     )
 
     if os.path.exists(ATTEND_NN_WEIGHTS_FILE):
         model.load_state_dict(torch.load(ATTEND_NN_WEIGHTS_FILE))
 
     train_model(
-        model, learning_rate=0.025, weight_decay=1e-6, grad_clip=5,
+        model, learning_rate=0.05, weight_decay=1e-5, grad_clip=5,
         log_freq=1000
     )
     generate_predictions(model)

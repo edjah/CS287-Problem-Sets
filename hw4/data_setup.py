@@ -17,6 +17,18 @@ LABEL = NamedField(sequential=False, names=())
 
 # loading up dataset
 train, val, test = torchtext.datasets.SNLI.splits(TEXT, LABEL)
+
+
+# crucial: removing punctuantion and lowercasing
+def clean(sentence):
+    return [w.strip('\'".!?,').lower() for w in sentence]
+
+
+for dataset in train, val, test:
+    for ex in dataset:
+        ex.premise = ['<s>'] + clean(ex.premise) + ['</s>']
+        ex.hypothesis = ['<s>'] + clean(ex.hypothesis) + ['</s>']
+
 TEXT.build_vocab(train)
 LABEL.build_vocab(train)
 

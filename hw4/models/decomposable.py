@@ -23,15 +23,15 @@ class FeedforwardNN(ntorch.nn.Module):
         super().__init__()
 
         nn_layers = [
+            ntorch.nn.Dropout(dropout),
             ntorch.nn.Linear(input_size, hidden_size).spec(input_dim, 'hidden'),
             ReLU(),
-            ntorch.nn.Dropout(dropout)
         ]
         for i in range(num_layers - 1):
+            nn_layers.append(ntorch.nn.Dropout(dropout))
             nn_layers.append(ntorch.nn.Linear(hidden_size, hidden_size)
                                       .spec('hidden', 'hidden'))
             nn_layers.append(ReLU())
-            nn_layers.append(ntorch.nn.Dropout(dropout))
         self.nn = torch.nn.Sequential(*nn_layers)
 
     def forward(self, x):
@@ -39,31 +39,30 @@ class FeedforwardNN(ntorch.nn.Module):
 
 
 class InputNN(ntorch.nn.Module):
-    def __init__(self, num_layers, hidden_size, dropout=0.2, emb_dropout=0.2,
-                 intra_attn=False):
+    def __init__(self, num_layers, hidden_size, dropout=0.2, intra_attn=False):
         super().__init__()
 
         # note: noninclusive, 11 => below -10, -10 to 10, above 10
         self.d_cap = 11
         self.intra_attn = intra_attn
-        self.bias = torch.nn.Parameter(torch.ones(2 * self.d_cap + 1))
 
-        self.emb_dropout = ntorch.nn.Dropout(emb_dropout)
         self.embeddings = ntorch.nn.Embedding.from_pretrained(
             WORD_VECS.values, freeze=True
         )
 
         if self.intra_attn:
+            self.bias = torch.nn.Parameter(torch.ones(2 * self.d_cap + 1))
             self.f_intra = FeedforwardNN(
                 embed_size, hidden_size, num_layers, dropout=dropout
             )
 
     def forward(self, a, b):
-        a = self.emb_dropout(self.embeddings(a))
-        b = self.emb_dropout(self.embeddings(b))
+        a = self.embeddings(a)
+        b = self.embeddings(b)
 
-        a_bar = a if (not self.intra_attn) else self.self_align(a)
-        b_bar = b if (not self.intra_attn) else self.self_align(b)
+        a_bar = self.self_align(a) if self.intra_attn else a
+        b_bar = self.self_align(b) if self.intra_attn else b
+
         a_bar = a_bar.rename('seqlen', 'aSeqlen')
         b_bar = b_bar.rename('seqlen', 'bSeqlen')
         return a_bar, b_bar
@@ -95,12 +94,10 @@ class InputNN(ntorch.nn.Module):
 
 
 class AttendNN(ntorch.nn.Module):
-    def __init__(self, num_layers, hidden_size, dropout=0.2, emb_dropout=0.2,
-                 intra_attn=False):
+    def __init__(self, num_layers, hidden_size, dropout=0.2, intra_attn=False):
         super().__init__()
-
         self.input = InputNN(num_layers, hidden_size, dropout=dropout,
-                             emb_dropout=emb_dropout, intra_attn=intra_attn)
+                             intra_attn=intra_attn)
 
         embed_size = 300
         embed_size = embed_size if (not intra_attn) else (2 * embed_size)

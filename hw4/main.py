@@ -10,7 +10,7 @@ from data_setup import train_iter, val_iter, test
 
 from models.decomposable import AttendNN
 
-ATTEND_NN_WEIGHTS_FILE = 'weights/decomposable_attention_2_layers_200_hidden_v3'
+ATTEND_NN_WEIGHTS_FILE = 'weights/decomposable_attention_2_layers_200_hidden_intra_attn'
 
 
 def evaluate(model, batches):
@@ -37,7 +37,7 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
     print(f'Initial Val Loss: {val_loss:.5f}')
     print(f'Initial Val Acc: {val_acc:.5f}\n')
 
-    opt = torch.optim.Adagrad(
+    opt = torch.optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=weight_decay
     )
 
@@ -45,12 +45,19 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
     start_time = time.time()
 
     best_params = {k: p.detach().clone() for k, p in model.named_parameters()}
-    best_val_acc = float('-inf')
+    best_val_acc = val_acc
 
     for epoch in range(num_epochs):
         curr_loss = 0
         num_correct = 0
         total_num = 0
+
+        # decay learning rate by 4% every epoch. goes to 1.6% after 100 epochs
+        learning_rate *= 0.96
+        state_dict = opt.state_dict()
+        for param_group in state_dict['param_groups']:
+            param_group['lr'] = learning_rate
+        opt.load_state_dict(state_dict)
 
         try:
             model.train()
@@ -72,7 +79,7 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
 
                 # print out intermediate training accuracy and loss
                 if i % log_freq == 0:
-                    msg = f'Batch: {i} / {len(train_iter)}'
+                    msg = f'Epoch {epoch} | Batch: {i} / {len(train_iter)}'
                     print('\n\n' + msg + '\n' + '=' * len(msg))
                     print(f'training loss: {(curr_loss / log_freq):.5f}')
                     print(f'training acc: {(num_correct / total_num):.5f}\n')
@@ -94,7 +101,7 @@ def train_model(model, num_epochs=100, learning_rate=0.001, weight_decay=0,
                 torch.save(model.state_dict(), ATTEND_NN_WEIGHTS_FILE)
 
             # logging
-            msg = f'{round(time.time() - start_time)} sec: Epoch {epoch + 1}'
+            msg = f'Epoch {epoch + 1} | {round(time.time() - start_time)} sec'
             print(f'{msg}\n{"=" * len(msg)}')
             print(f'Full Validation Loss: {val_loss:.5f}')
             print(f'Full Validation Acc: {val_acc:.5f}\n')
@@ -145,14 +152,14 @@ def generate_predictions(model):
 
 if __name__ == '__main__':
     model = AttendNN(
-        num_layers=2, hidden_size=200, dropout=0.2, intra_attn=False
+        num_layers=2, hidden_size=200, dropout=0.2, intra_attn=True
     )
 
     if os.path.exists(ATTEND_NN_WEIGHTS_FILE):
         model.load_state_dict(torch.load(ATTEND_NN_WEIGHTS_FILE))
 
     train_model(
-        model, learning_rate=0.05, weight_decay=1e-5, grad_clip=5,
+        model, learning_rate=0.0005, weight_decay=0, grad_clip=5,
         log_freq=1000
     )
     generate_predictions(model)

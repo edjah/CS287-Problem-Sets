@@ -47,7 +47,7 @@ class InputNN(ntorch.nn.Module):
         self.intra_attn = intra_attn
 
         self.embeddings = ntorch.nn.Embedding.from_pretrained(
-            WORD_VECS.values, freeze=True
+            WORD_VECS.values.clone(), freeze=True
         )
 
         if self.intra_attn:
@@ -94,7 +94,8 @@ class InputNN(ntorch.nn.Module):
 
 
 class AttendNN(ntorch.nn.Module):
-    def __init__(self, num_layers, hidden_size, dropout=0.2, intra_attn=False):
+    def __init__(self, num_layers, hidden_size, dropout=0.2, intra_attn=False,
+                 use_labels=False, num_labels=4):
         super().__init__()
         self.input = InputNN(num_layers, hidden_size, dropout=dropout,
                              intra_attn=intra_attn)
@@ -107,12 +108,18 @@ class AttendNN(ntorch.nn.Module):
         self.h = FeedforwardNN(2 * hidden_size, hidden_size, num_layers,
                                dropout, input_dim='hidden')
 
+        self.use_labels = use_labels
+        if use_labels:
+            self.y_combine = FeedforwardNN(
+                hidden_size + 1, hidden_size, num_layers, dropout,
+                input_dim='hidden'
+            )
         self.final = torch.nn.Sequential(
-            ntorch.nn.Linear(hidden_size, 4).spec('hidden', 'label'),
+            ntorch.nn.Linear(hidden_size, num_labels).spec('hidden', 'label'),
             LogSoftmax(dim='label')
         )
 
-    def forward(self, a, b):
+    def forward(self, a, b, y=None):
         a_bar, b_bar = self.input(a, b)
 
         # ATTEND
@@ -128,5 +135,9 @@ class AttendNN(ntorch.nn.Module):
         v2 = self.g(ntorch.cat([b_bar, alpha], 'embedding')).sum('bSeqlen')
 
         # NOTE: currently adds log softmax layer after linear, use nllloss
-        yhat = self.final(self.h(ntorch.cat([v1, v2], 'hidden')))
+        out = self.h(ntorch.cat([v1, v2], 'hidden'))
+        if self.use_labels:
+            y = ntorch.tensor(y.values.unsqueeze(1), names=('batch', 'hidden'))
+            out = self.y_combine(ntorch.cat([out, y.float()], 'hidden'))
+        yhat = self.final(out)
         return yhat

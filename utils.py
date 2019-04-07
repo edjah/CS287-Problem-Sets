@@ -2,29 +2,71 @@ import time
 import torch
 
 
+def humanize_duration(duration):
+    """Converts a duration (in seconds) to a human-readable string"""
+    if duration < 1:
+        return f'{1000 * duration:.3f} ms'
+    elif duration < 60:
+        return f'{duration:.3f} sec'
+
+    duration = round(duration)
+    if duration < 3600:
+        return f'{duration // 60} min {duration % 60} sec'
+    elif duration < 86400:
+        return f'{duration // 3600} hrs {(duration // 60) % 60} min'
+    else:
+        return f'{duration // 86400} days {(duration // 3600) % 24} hrs'
+
+
 class TimingContext:
-    def __init__(self, msg=None, suffix=''):
-        self.msg = msg
-        self.suffix = suffix
+    """
+    Motivating Example:
+        code
+        ----
+        with TimingContext('expensive command'):
+            with TimingContext('subroutine1'):
+                subroutine1()
+            with TimingContext('subroutine2'):
+                subroutine2()
+            other_stuff()
+
+        stdout
+        ------
+            < subroutine1: 123.456 ms
+            < subroutine2: 234.567 ms
+        > expensive command: 427.023 ms
+
+    Automatic indentation for nested Timing Context is not thread safe
+    """
+
+    indent_level = 0
+    quiet = False
+
+    def __init__(self, description='', quiet=False):
+        self.description = description
+        self.prev_quiet = TimingContext.quiet
+        self.quiet = quiet
+
+        if self.quiet:
+            TimingContext.quiet = True
 
     def __enter__(self):
-        if self.msg is not None:
-            print(self.msg)
-            print('-' * len(self.msg))
         self.start = time.time()
+        TimingContext.indent_level += 1
 
-    def __exit__(self, typ, val, traceback):
-        dur = time.time() - self.start
-        prefix = self.msg + ': ' if self.msg else ''
+    def __exit__(self, type, value, traceback):
+        TimingContext.indent_level -= 1
 
-        if dur < 1:
-            print(f'{prefix}{1000 * dur:.3f} ms')
-        elif dur < 60:
-            print(f'{prefix}{dur:.3f} sec')
-        else:
-            print(f'{prefix}{int(dur) // 60} min {int(dur) % 60} sec')
+        duration = humanize_duration(time.time() - self.start)
+        indent = ' ' * (4 * TimingContext.indent_level)
+        indent += '>' if TimingContext.indent_level == 0 else '<'
+        msg = f'{indent} {self.description}: {duration}'
 
-        print(self.suffix, end='')
+        if not TimingContext.quiet:
+            print(msg)
+
+        if self.quiet:
+            TimingContext.quiet = self.prev_quiet
 
 
 def chunks(iterator, n):

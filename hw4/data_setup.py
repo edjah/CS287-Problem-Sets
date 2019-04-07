@@ -4,8 +4,10 @@ import torch
 import torchtext
 
 # Named Tensor wrappers
-from namedtensor import NamedTensor
+from namedtensor import ntorch
 from namedtensor.text import NamedField
+
+from utils import chunks
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
@@ -18,23 +20,67 @@ LABEL = NamedField(sequential=False, names=())
 # loading up dataset
 train, val, test = torchtext.datasets.SNLI.splits(TEXT, LABEL)
 
-
-# crucial: removing punctuantion and lowercasing
-def clean(sentence):
-    return [w.strip('\'".!?,').lower() for w in sentence]
-
-
-for dataset in train, val, test:
-    for ex in dataset:
-        ex.premise = ['<s>'] + clean(ex.premise) + ['</s>']
-        ex.hypothesis = ['<s>'] + clean(ex.hypothesis) + ['</s>']
-
+# building up the vocabulary an initial time without cleaning
 TEXT.build_vocab(train)
 LABEL.build_vocab(train)
 
+
+def clean(sentence):
+    return ['<s>'] + [w.strip('\'".!?,').lower() for w in sentence] + ['</s>']
+
+
+def ordered_test_stage_1(sent):
+    return clean([TEXT.vocab.itos[w] for w in sent])
+
+
+def ordered_test_stage_2(sent):
+    idx = torch.tensor([[TEXT.vocab.stoi[w]] for w in sent])
+    return ntorch.tensor(idx, names=('seqlen', 'batch'))
+
+
+# generating an ordered test set (without cleaning). this is critical for kaggle
+FIRST_ORDERED_TEST = []
+
+correct_order_test_iter = torchtext.data.BucketIterator(
+    test, train=False, batch_size=10, device=torch.device('cuda')
+)
+for batch in correct_order_test_iter:
+    for i in range(len(batch)):
+        FIRST_ORDERED_TEST.append([
+            ordered_test_stage_1(batch.premise.values[:, i]),
+            ordered_test_stage_1(batch.hypothesis.values[:, i]),
+            ntorch.stack([batch.label.get('batch', i)], 'batch')
+        ])
+
+
+# critical for performance: removing punctuantion and lowercasing
+for dataset in train, val, test:
+    for ex in dataset:
+        ex.premise = clean(ex.premise)
+        ex.hypothesis = clean(ex.hypothesis)
+
+# rebuilding the vocabulary after cleaning
+TEXT.build_vocab(train)
+LABEL.build_vocab(train)
+
+
+SECOND_ORDERED_TEST = []
+for chunk in chunks(FIRST_ORDERED_TEST, 10):
+    premise_batch, hypothesis_batch, label_batch = [], [], []
+    for premise, hypothesis, label in chunk:
+        premise_batch.append(ordered_test_stage_2(premise))
+        hypothesis_batch.append(ordered_test_stage_2(hypothesis))
+        label_batch.append(label)
+
+    SECOND_ORDERED_TEST.append([
+        ntorch.cat(premise_batch, 'batch'),
+        ntorch.cat(hypothesis_batch, 'batch'),
+        ntorch.cat(label_batch, 'batch'),
+    ])
+
 # bucketing the dataset into iterators
 train_iter, val_iter, test_iter = torchtext.data.BucketIterator.splits(
-    (train, val, test), batch_size=64, device=torch.device('cuda'),
+    (train, val, test), batch_size=128, device=torch.device('cuda'),
     repeat=False
 )
 
@@ -56,6 +102,6 @@ assert not (vectors != vectors).any(), 'NaNs exist in the embeddings!'
 vectors[1] = torch.zeros(vectors.shape[1])
 
 # update TEXT.vocab.vectors
-TEXT.vocab.vectors = NamedTensor(vectors, ('word', 'embedding'))
+TEXT.vocab.vectors = ntorch.tensor(vectors, ('word', 'embedding'))
 WORD_VECS = TEXT.vocab.vectors
 embed_size = WORD_VECS.shape['embedding']
